@@ -1,3 +1,4 @@
 .ssh/
 .lesshst
 environment_911/
+.env
