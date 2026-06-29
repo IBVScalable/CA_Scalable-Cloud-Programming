@@ -1,40 +1,25 @@
+import os
+import io
 import requests
 import pandas as pd
 import boto3
-import io
  
-# 1. Provide temporary AWS Academy credentials 
-AWS_ACCESS_KEY = "ASIAR52ZYPAZAPGMIFCP"
-AWS_SECRET_KEY = "YK74c/135siQCkG9Uv98U0S2ofGSk8F6x6sJWsuG"
-AWS_SESSION_TOKEN = "IQoJb3JpZ2luX2VjEOb//////////wEaCXVzLXdlc3QtMiJHMEUCIFJSJT0vauQ+hCMgAeeRFj/PYntWu8KV6SSGThk46w+uAiEAvV2WGmVwNI44WfaYxmJfb8qgqozOZ6Kn+t3vt6ht2C4qvQIIr///////////ARAAGgwxMzI3OTUzNjU0MjYiDH2Cjx0XcyRNZEYG1SqRAo8bY0ED7Mt6GaOy/3ebP3uQXgVPzOfG4Joev4rjxHJOUtHv9NQSaIBeevDOuEOsnojZYY4tAXH6us5ORf7Gk3cBPP50B44PZnxVCDzPNKPZfGPmrvVOd38eGepVcPiZmlGp6Sn/A1hcajrKRQPl85L3jMXEVo/MwriAiGzioRxhN8EB5imNwr7zVaPkRjDNo5IASv48D7PW9/rb0Mrirt+HcRxZ4+kzAnCTBrxHuupdEyhzRv04EcQc7p1eeGwRWsHRnoJ9jSMTJTJtQJwZee6iOIzDUmZlCzx3RIHUuDn0o2bDmqSIuWFgOSr6WlahWzLJnho8KEQf9Mw/7ZpAN7gy35fVWpYvE/czYurZQ0zpVDDQ44nSBjqdAQV65eXwEFRqbgsxQs9WOZQ58szrAB6PSpC/NKoKx2tDwpaPnuK90eGkOjMA0lP1UwfJjBYcdOweIyz5iMlzH973eHR8Aea3MLj3NoPoUCAoIDf6UpXSIE3oc9ztakuZOnGgmw+InFrtWQnx4/ZHW94NYr1543RtsQgLGJ8T7auNYVs/J4PdVfnaGgBaic5x7qQTHY4dW8ed0QorZW0="
+# =====================================================================
+# 1. ENVIRONMENT SECURITY & AWS ACADEMY INITIALIZATION
+# =====================================================================
+# Read secure variables set up in your local EC2 environment or GitHub Secrets
+AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
  
-# 2. Setup targets
-API_ENDPOINT = "https://data.austintexas.gov/resource/e687-fx2y.json"
-BUCKET_NAME = "nci-911-austin-project-2026"  # Globally unique bucket name you created in S3
-MASTER_FILE_KEY = "austin_911_raw_api_data.csv"
+# Fail early if credentials are missing
+if not all([AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_SESSION_TOKEN]):
+    raise ValueError(
+        "Missing temporary AWS credentials! Ensure AWS_ACCESS_KEY_ID, "
+        "AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN are set in your environment."
+    )
  
-# 3. Pull a representative chunk from Socrata via offset pagination
-LIMIT_PER_PAGE = 5000
-TOTAL_ROWS_NEEDED = 60000
-all_records = []
- 
-print("Streaming rows directly from Austin open data portal API...")
-for offset in range(0, TOTAL_ROWS_NEEDED, LIMIT_PER_PAGE):
-    query_url = f"{API_ENDPOINT}?$limit={LIMIT_PER_PAGE}&$offset={offset}"
-    response = requests.get(query_url)
-    if response.status_code != 200:
-        print(f"Failed. Status code: {response.status_code}")
-        break
-    data = response.json()
-    if not data:
-        break
-    all_records.extend(data)
-    print(f"Progress: Downloaded {len(all_records)} rows...")
- 
-# Build base DataFrame
-df_raw = pd.DataFrame(all_records)
- 
-# 4. Stream directly to S3 via memory buffer
+# Establish a session bound by your AWS Academy temporary LabRole restrictions
 session = boto3.Session(
     aws_access_key_id=AWS_ACCESS_KEY,
     aws_secret_access_key=AWS_SECRET_KEY,
@@ -43,8 +28,71 @@ session = boto3.Session(
 )
 s3 = session.client('s3')
  
-csv_buffer = io.StringIO()
-df_raw.to_csv(csv_buffer, index=False)
-s3.put_object(Bucket=BUCKET_NAME, Key=MASTER_FILE_KEY, Body=csv_buffer.getvalue())
+# =====================================================================
+# 2. CONFIGURATION CHANNELS
+# =====================================================================
+# The clean data resource endpoint path for the Socrata backend
+API_ENDPOINT = "https://data.austintexas.gov/resource/e687-fx2y.json"
  
-print(f"Data layer synchronized. Saved to S3: s3://{BUCKET_NAME}/{MASTER_FILE_KEY}")
+# Update this to match your EXACT bucket name created in the AWS console
+BUCKET_NAME = "nci-911-austin-project-2026"  
+MASTER_FILE_KEY = "austin_911_raw_api_data.csv"
+ 
+# Configuration variables for handling scalable cloud sampling benchmarks
+LIMIT_PER_PAGE = 5000       # Efficient batch size allowed by Socrata
+TOTAL_ROWS_NEEDED = 60000   # Solid size to build performance vs throughput graphs
+all_records = []
+ 
+# =====================================================================
+# 3. PAGINATED DATA EXTRACTION INGESTION ENGINE
+# =====================================================================
+print(f"Initializing live stream ingestion from: {API_ENDPOINT}")
+print(f"Targeting sample capacity: {TOTAL_ROWS_NEEDED} rows...")
+ 
+for offset in range(0, TOTAL_ROWS_NEEDED, LIMIT_PER_PAGE):
+    # Order by incident_number to ensure pagination windows don't overlap data rows
+    query_url = f"{API_ENDPOINT}?$limit={LIMIT_PER_PAGE}&$offset={offset}&$order=incident_number"
+    try:
+        response = requests.get(query_url, timeout=30)
+        if response.status_code != 200:
+            print(f"API Error at offset {offset}: Status Code {response.status_code}")
+            print(f"Details: {response.text}")
+            break
+        data = response.json()
+        if not data:
+            print("Reached the end of available API live record rows.")
+            break
+        all_records.extend(data)
+        print(f"Progress Download Layer: {len(all_records)} / {TOTAL_ROWS_NEEDED} entries captured...")
+    except requests.exceptions.RequestException as e:
+        print(f"Network error encountered at offset {offset}: {e}")
+        break
+ 
+# Parse JSON into clean matrix columns
+df_raw = pd.DataFrame(all_records)
+print(f"Ingestion extraction complete. Constructed shape matrix: {df_raw.shape}")
+ 
+# Validate target field exists before wasting cloud compute uploading an empty shell
+if 'priority_level' not in df_raw.columns:
+    print("WARNING: 'priority_level' column missing in this batch! Check API fields.")
+ 
+# =====================================================================
+# 4. SYNCHRONIZE DATA WITH AWS S3 STORAGE
+# =====================================================================
+print(f"Streaming dataset into target bucket lake: s3://{BUCKET_NAME}/{MASTER_FILE_KEY}...")
+ 
+try:
+    # Build string memory buffer stream to conform with cloud-native deployment rules
+    csv_buffer = io.StringIO()
+    df_raw.to_csv(csv_buffer, index=False)
+    # Put the object into your verified bucket
+    s3.put_object(
+        Bucket=BUCKET_NAME,
+        Key=MASTER_FILE_KEY,
+        Body=csv_buffer.getvalue()
+    )
+    print("SUCCESS: Data layer fully synchronized with AWS S3 data lake!")
+except session.exceptions.ClientError as ce:
+    print(f"AWS Client error during upload: {ce}")
+except Exception as e:
+    print(f"Failed to synchronize artifact with cloud platform: {e}")

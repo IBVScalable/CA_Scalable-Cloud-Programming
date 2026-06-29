@@ -12,7 +12,7 @@
 ~h
 # Command Line History (newest to oldest):
 :wq
-|2,0,1782739978,,"wq"
+|2,0,1782741302,,"wq"
 
 # Search String History (newest to oldest):
 
@@ -25,10 +25,18 @@
 # Registers:
 
 # File marks:
-'0  11  17  ~/ingest_911.py
-|4,48,11,17,1782739978,"~/ingest_911.py"
+'0  19  68  ~/ingest_911.py
+|4,48,19,68,1782741302,"~/ingest_911.py"
+'1  1  1033  ~/ingest_911.py
+|4,49,1,1033,1782739978,"~/ingest_911.py"
+'2  11  17  ~/ingest_911.py
+|4,50,11,17,1782739978,"~/ingest_911.py"
 
 # Jumplist (newest first):
+-'  19  68  ~/ingest_911.py
+|4,39,19,68,1782741302,"~/ingest_911.py"
+-'  1  1033  ~/ingest_911.py
+|4,39,1,1033,1782741065,"~/ingest_911.py"
 -'  11  17  ~/ingest_911.py
 |4,39,11,17,1782739978,"~/ingest_911.py"
 -'  1  0  ~/ingest_911.py
@@ -37,11 +45,13 @@
 # History of marks within files (newest to oldest):
 
 > ~/ingest_911.py
-	*	1782739965	0
-	"	11	17
-	^	11	18
-	.	9	812
-	+	50	83
-	+	7	37
-	+	8	57
-	+	9	812
+	*	1782741299	0
+	"	19	68
+	^	19	69
+	.	98	68
+	+	1	2392
+	+	1	140
+	+	1	199
+	+	1	1013
+	+	1	2309
+	+	98	68
