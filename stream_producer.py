@@ -1,43 +1,52 @@
-import io
 import time
 import json
-import boto3
-import pandas as pd
+import random
+from datetime import datetime
+from kafka import KafkaProducer
 
-# The SDK will automatically resolve credentials natively via the EC2 IAM Role
-s3 = boto3.client('s3', region_name="us-east-1")
-kinesis = boto3.client('kinesis', region_name="us-east-1")
+# --- CONFIGURATION ---
+KAFKA_BROKER = "localhost:9092"
+KAFKA_TOPIC = "austin_911_stream"
 
-BUCKET_NAME = "nci-911-austin-project-2026"
-INPUT_FILE_KEY = "austin_911_raw_api_data.csv"
-STREAM_NAME = "austin_911_stream"
+print(f"Initializing Live Stream Producer node...")
+print(f"Targeting Kafka Broker: {KAFKA_BROKER} | Topic: {KAFKA_TOPIC}")
 
-# 1. Ensure Kinesis Stream Exists
+# Initialize Kafka Producer
 try:
-    kinesis.describe_stream(StreamName=STREAM_NAME)
-    print(f"Connected to existing Kinesis stream: {STREAM_NAME}")
-except kinesis.exceptions.ResourceNotFoundException:
-    print(f"Creating active Kinesis Stream: {STREAM_NAME}...")
-    kinesis.create_stream(StreamName=STREAM_NAME, ShardCount=1)
-    time.sleep(5) # Wait for AWS provisioning
-
-# 2. Download and stream data chunks from the data lake
-print("Downloading historical reference array from S3 data lake...")
-obj = s3.get_object(Bucket=BUCKET_NAME, Key=INPUT_FILE_KEY)
-df = pd.read_csv(io.BytesIO(obj['Body'].read())).fillna("UNKNOWN")
-
-print("Starting live pipeline ingestion replay engine (5 records/sec)...")
-for index, row in df.iterrows():
-    payload = row.to_dict()
-    
-    # Push record to Kinesis Stream
-    kinesis.put_record(
-        StreamName=STREAM_NAME,
-        Data=json.dumps(payload),
-        PartitionKey=str(payload.get('incident_number', time.time()))
+    producer = KafkaProducer(
+        bootstrap_servers=[KAFKA_BROKER],
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
-    
-    if index % 10 == 0:
-        print(f"Ingested record sequence count: {index} -> Stream Event: {payload.get('incident_type')}")
+    print("Producer successfully bound to cluster node. Starting live generation...")
+except Exception as e:
+    print(f"Failed to initialize producer node: {e}")
+    exit(1)
+
+# Sample common emergency incident categories matching your dataset profile
+incident_pool = [
+    "TRAFFIC COMPLAINT", "MEDICAL EMERGENCY", "BURGLARY", 
+    "ASSAULT", "FIRE ALARM", "DISTURBANCE", "SUSPICIOUS VEHICLE"
+]
+
+try:
+    while True:
+        # Construct sample streaming telemetry payload
+        payload = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "incident_type": random.choice(incident_pool), # Crucial: This key must match what speed_layer reads
+            "priority": random.choice([1, 2, 3]),
+            "zip_code": f"787{random.randint(0, 59):02d}"
+        }
         
-    time.sleep(0.2) # Throttled pace to simulate real-world arrival frequency
+        # Fire event asynchronously to Kafka
+        producer.send(KAFKA_TOPIC, value=payload)
+        print(f"?? [SENT] {payload['timestamp']} | Event: {payload['incident_type']}")
+        
+        # Flush stream buffer immediately
+        producer.flush()
+        
+        # Pace the stream interval
+        time.sleep(0.5)
+
+except KeyboardInterrupt:
+    print("\nStream producer cleanly disengaged.")
