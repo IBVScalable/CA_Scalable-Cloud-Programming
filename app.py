@@ -10,7 +10,7 @@ from kafka import KafkaConsumer
 
 # --- MASTER'S LEVEL VISUAL CONFIGURATION ---
 st.set_page_config(
-    page_title="MSc Cloud Computing - Enterprise Lambda Cockpit",
+    page_title="Scalable Cloud Programming CA",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -110,8 +110,8 @@ if pipeline_status.startswith("ONLINE"):
         st.session_state.telemetry_log.pop(0)
 
 # --- DASHBOARD MAIN COCKPIT VIEW ---
-st.title("🚨 Enterprise Analytics Cockpit — Austin 911 Scalable Lambda Stream Node")
-st.caption("Research Project Framework | Scalable Cloud Programming Module Evaluation Context")
+st.title("🚨 Austin 911 Scalable Lambda Stream Dashboard")
+st.caption("Scalable Cloud Programming CA Project")
 
 # 1. Advanced Telemetry Dashboard KPI Header Bar
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)

@@ -35,7 +35,7 @@ try:
         current_time = datetime.now()
         
         # Poll Kafka for records batches
-        records_dict = consumer.poll(timeout_ms=200, max_records=100)
+        records_dict = consumer.poll(timeout_ms=50, max_records=200)
         
         if records_dict:
             for partition, messages in records_dict.items():
