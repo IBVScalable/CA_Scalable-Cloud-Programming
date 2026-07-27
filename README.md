@@ -24,14 +24,3 @@ A high-performance, real-time distributed stream processing and telemetry analyt
 * **Real-Time F1 Telemetry Command:** Live tracking of throttle fusion, speed metrics, RPM distributions, and microsecond stream latencies.
 * **Cluster Performance Benchmarking:** Interactive analysis of cluster worker scalability, throughput curves, and execution speedups.
 * **Glassmorphism UI:** Custom-styled dark mode dashboard optimized for motorsport telemetry visualization.
-
----
-
-## ⚙️ Installation & Setup Guide
-
-Follow these steps to set up and run the platform locally or within your cloud environment:
-
-### 1. Clone the Repository
-```bash
-git clone [https://github.com/VedantB-sudo/CA_Scalable-Cloud-Programming.git](https://github.com/VedantB-sudo/CA_Scalable-Cloud-Programming.git)
-cd CA_Scalable-Cloud-Programming
